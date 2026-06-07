@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(
-  "AIzaSyB1NiqK1Vrlk7mFAGUIOlfp1Bg04_Xp8to"
+  "API_KEY"
 );
 
 export async function askAI(
