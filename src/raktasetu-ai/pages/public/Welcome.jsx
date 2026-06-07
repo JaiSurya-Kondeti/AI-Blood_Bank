@@ -11,7 +11,7 @@ function Welcome() {
         <div className="text-center">
 
           <h1 className="text-6xl font-bold text-red-600">
-            RaktaSetu AI
+            AI Predictive Blood Crisis Precaution System
           </h1>
 
           <p className="mt-5 text-xl">

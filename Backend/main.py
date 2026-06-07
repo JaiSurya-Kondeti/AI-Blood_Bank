@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from api.admin import router as admin_router
 
 from api.auth import router as auth_router
 from api.patient import router as patient_router
@@ -12,6 +13,7 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(patient_router)
 app.include_router(donor_router)
+app.include_router(admin_router)
 
 
 @app.get("/")
@@ -19,3 +21,7 @@ def root():
     return {
         "message": "AI Backend Running"
     }
+
+
+
+

@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-
+import { useEffect,useState } from "react";
+import { api } from "./services/api";
+import { askAI } from "./services/gemini";
 // ── Design tokens ──────────────────────────────────────────────
 const COLORS = {
   crimson: "#C0392B",
@@ -255,7 +256,7 @@ function Dashboard({ setPage }) {
           <PulsingDot color="#fff" size={12} />
           <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: 1, opacity: 0.8 }}>SYSTEM LIVE — ALL AGENTS ACTIVE</span>
         </div>
-        <h1 style={{ fontSize: 36, fontWeight: 800, margin: "0 0 8px", letterSpacing: -1 }}>RaktaSetu Nexus AI</h1>
+        <h3 style={{ fontSize: 36, fontWeight: 800, margin: "0 0 8px", letterSpacing: -1 }}>AI Predictive Blood Crisis Precaution System</h3>
         <p style={{ fontSize: 16, opacity: 0.75, margin: 0 }}>India's Autonomous Blood Care Operating System · Serving Thalassemia patients across 28 states</p>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: "2rem" }}>
@@ -301,6 +302,33 @@ function Dashboard({ setPage }) {
 
 function PatientsPage() {
   const [selected, setSelected] = useState(null);
+  const [requests, setRequests] = useState([]);
+  const [message, setMessage] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+  const [showAlertPanel, setShowAlertPanel] = useState(false);
+  const donorHistory = [
+  {
+    donor: "Ramesh Yadav",
+    blood: "B+",
+    date: "12 May 2026",
+    hospital: "AIIMS Delhi",
+    units: 1
+  },
+  {
+    donor: "Sunita Patel",
+    blood: "B+",
+    date: "18 April 2026",
+    hospital: "AIIMS Delhi",
+    units: 1
+  },
+  {
+    donor: "Krishnamurti",
+    blood: "B+",
+    date: "02 March 2026",
+    hospital: "AIIMS Delhi",
+    units: 2
+  }
+];
   const patients = [
     { id: 1, name: "Arjun Mehta", age: 14, blood: "B+", hb: 7.2, freq: "Every 21 days", hospital: "AIIMS Delhi", nextTrans: "June 10", status: "Stable", lang: "Hindi", hbTrend: [8.1, 7.8, 7.4, 7.2], transfusions: 47, lastTrans: "May 20" },
     { id: 2, name: "Fatima Shaikh", age: 9, blood: "O-", hb: 6.8, freq: "Every 14 days", hospital: "Nizam's Institute", nextTrans: "June 8", status: "Critical", lang: "Telugu", hbTrend: [7.2, 6.9, 7.0, 6.8], transfusions: 89, lastTrans: "May 25" },
@@ -308,6 +336,39 @@ function PatientsPage() {
     { id: 4, name: "Rahul Gupta", age: 7, blood: "AB+", hb: 6.2, freq: "Every 10 days", hospital: "SGPGI Lucknow", nextTrans: "June 7", status: "Emergency", lang: "Hindi", hbTrend: [7.0, 6.8, 6.5, 6.2], transfusions: 112, lastTrans: "May 28" },
   ];
   const p = selected !== null ? patients.find(pt => pt.id === selected) : null;
+const handleRequestDonor = () => {
+  if (!p) return;
+
+  const request = {
+    id: Date.now(),
+    patientName: p.name,
+    bloodGroup: p.blood,
+    hospital: p.hospital,
+    urgency: p.status,
+    requestedAt: new Date().toLocaleString(),
+    status: "Searching Donors"
+  };
+
+  const existing =
+    JSON.parse(localStorage.getItem("bloodRequests")) || [];
+
+  existing.push(request);
+
+  localStorage.setItem(
+    "bloodRequests",
+    JSON.stringify(existing)
+  );
+
+  setRequests(existing);
+
+  setMessage(
+    `✅ AI Coordinator started donor search for ${p.name}`
+  );
+
+  setTimeout(() => {
+    setMessage("");
+  }, 3000);
+};
   return (
     <div>
       <SectionHeader title="Patient Digital Twins" subtitle="AI-powered continuous monitoring for every thalassemia patient" />
@@ -366,11 +427,151 @@ function PatientsPage() {
                 ))}
               </div>
             </div>
+            {message && (
+  <div
+    style={{
+      background: "#E8F8F5",
+      color: "#117A65",
+      padding: "10px",
+      borderRadius: "8px",
+      marginBottom: "15px",
+      fontWeight: "600",
+      border: "1px solid #A2D9CE"
+    }}
+  >
+    {message}
+  </div>
+)}
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn size="sm" variant="primary">Request Donor</Btn>
-              <Btn size="sm" variant="secondary">View History</Btn>
-              <Btn size="sm" variant="ghost">Send Alert</Btn>
-            </div>
+
+  <input
+    type="text"
+    value={userInput}
+    onChange={(e) => setUserInput(e.target.value)}
+    placeholder={`Ask in ${selectedLanguage}`}
+    style={{
+      flex: 1,
+      padding: "10px 14px",
+      borderRadius: 10,
+      border: `1px solid ${COLORS.border}`
+    }}
+  />
+
+  <Btn
+    variant="primary"
+    onClick={handleSend}
+  >
+    Send
+  </Btn>
+
+  <button
+    onClick={() => setActive(!active)}
+    style={{
+      width: 44,
+      height: 44,
+      borderRadius: "50%",
+      background: active ? "#dc2626" : COLORS.crimson,
+      color: "#fff",
+      border: "none",
+      cursor: "pointer"
+    }}
+  >
+    {active ? "■" : "🎤"}
+  </button>
+
+</div>
+{
+showHistory && (
+<Card style={{ marginTop: "20px" }}>
+  <h3>Past Donation History</h3>
+
+  {donorHistory.map((d, i) => (
+    <div
+      key={i}
+      style={{
+        padding: "10px",
+        marginBottom: "10px",
+        border: "1px solid #ddd",
+        borderRadius: "8px"
+      }}
+    >
+      <strong>{d.donor}</strong>
+      <br />
+      Blood Group: {d.blood}
+      <br />
+      Date: {d.date}
+      <br />
+      Hospital: {d.hospital}
+      <br />
+      Units: {d.units}
+    </div>
+  ))}
+
+  <Btn
+    variant="ghost"
+    onClick={() => setShowHistory(false)}
+  >
+    Close
+  </Btn>
+
+</Card>
+)}
+  {
+showAlertPanel && (
+<Card style={{ marginTop: "20px" }}>
+  <h3>Emergency Alert Center</h3>
+
+  <p>
+    AI will notify all matching donors.
+  </p>
+
+  <div style={{ display: "flex", gap: "10px" }}>
+
+    <Btn
+      variant="teal"
+      onClick={() =>
+        alert(
+          "WhatsApp alerts sent to nearby donors"
+        )
+      }
+    >
+      WhatsApp
+    </Btn>
+
+    <Btn
+      variant="primary"
+      onClick={() =>
+        alert(
+          "SMS alerts sent to nearby donors"
+        )
+      }
+    >
+      SMS
+    </Btn>
+
+    <Btn
+      variant="navy"
+      onClick={() =>
+        alert(
+          "AI Voice Calls initiated"
+        )
+      }
+    >
+      AI Voice Call
+    </Btn>
+
+  </div>
+
+  <br />
+
+  <Btn
+    variant="ghost"
+    onClick={() => setShowAlertPanel(false)}
+  >
+    Close
+  </Btn>
+</Card>
+)}
           </Card>
         )}
       </div>
@@ -380,12 +581,49 @@ function PatientsPage() {
 
 function DonorsPage() {
   const donors = [
-    { name: "Ramesh Yadav", blood: "O+", city: "Hyderabad", reliability: 94, health: 98, response: 96, distance: 3.2, available: true, lastDonation: "72 days ago", donations: 23, streak: 7 },
-    { name: "Sunita Patel", blood: "B-", city: "Secunderabad", reliability: 88, health: 91, response: 84, distance: 7.1, available: false, lastDonation: "45 days ago", donations: 15, streak: 3 },
-    { name: "Krishnamurti", blood: "AB+", city: "Jubilee Hills", reliability: 97, health: 99, response: 98, distance: 5.8, available: true, lastDonation: "91 days ago", donations: 41, streak: 12 },
-    { name: "Aisha Begum", blood: "A-", city: "Banjara Hills", reliability: 79, health: 86, response: 72, distance: 9.4, available: true, lastDonation: "98 days ago", donations: 8, streak: 2 },
-    { name: "Suresh Reddy", blood: "O-", city: "Kukatpally", reliability: 91, health: 95, response: 89, distance: 12.1, available: true, lastDonation: "120 days ago", donations: 34, streak: 9 },
-  ];
+  {
+    name: "Ramesh Yadav",
+    mobile: "9876543210",
+    blood: "O+",
+    city: "Hyderabad",
+    reliability: 94,
+    health: 98,
+    response: 96,
+    distance: 3.2,
+    available: true,
+    lastDonation: "72 days ago",
+    donations: 23,
+    streak: 7
+  },
+  {
+    name: "Sunita Patel",
+    mobile: "9876543211",
+    blood: "B-",
+    city: "Secunderabad",
+    reliability: 88,
+    health: 91,
+    response: 84,
+    distance: 7.1,
+    available: false,
+    lastDonation: "45 days ago",
+    donations: 15,
+    streak: 3
+  },
+  {
+    name: "Krishnamurti",
+    mobile: "9876543212",
+    blood: "AB+",
+    city: "Jubilee Hills",
+    reliability: 97,
+    health: 99,
+    response: 98,
+    distance: 5.8,
+    available: true,
+    lastDonation: "91 days ago",
+    donations: 41,
+    streak: 12
+  }
+];
   const finalScore = d => Math.round((d.reliability * 0.35 + d.health * 0.35 + d.response * 0.3));
   return (
     <div>
@@ -411,7 +649,25 @@ function DonorsPage() {
               </div>
             ))}
             <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
-              <Btn size="sm" variant="primary">Contact</Btn>
+              <Btn
+  size="sm"
+  variant="primary"
+  onClick={() => {
+    alert(
+      `AI Contact Center
+
+Donor: ${d.name}
+Blood Group: ${d.blood}
+Mobile: ${d.mobile}
+
+✓ WhatsApp Alert Sent
+✓ SMS Alert Sent
+✓ AI Voice Call Initiated`
+    );
+  }}
+>
+  Contact
+</Btn>
               <Badge color="navy">🔥 {d.streak}-streak</Badge>
             </div>
           </Card>
@@ -442,6 +698,11 @@ function DonorsPage() {
 }
 
 function CoordinatorPage() {
+
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [showEscalation, setShowEscalation] = useState(false);
+
   const [tasks] = useState([
     { id: 1, patient: "Rahul Gupta", blood: "AB+", hospital: "SGPGI", urgency: "Emergency", stage: 4, stages: ["Patient Identified", "Donors Selected", "Outreach Sent", "Responses Tracked", "Appointment Booked"], eta: "2 hrs", donors: 3 },
     { id: 2, patient: "Fatima Shaikh", blood: "O-", hospital: "Nizam's", urgency: "Critical", stage: 2, stages: ["Patient Identified", "Donors Selected", "Outreach Sent", "Responses Tracked", "Appointment Booked"], eta: "4 hrs", donors: 1 },
@@ -482,12 +743,209 @@ function CoordinatorPage() {
               ))}
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <Btn size="sm" variant="ghost">View Donors</Btn>
-              <Btn size="sm" variant="ghost">Send Update</Btn>
-              {t.stage < 4 && <Btn size="sm" variant="secondary">Manual Escalate</Btn>}
-            </div>
+
+  <Btn
+    size="sm"
+    variant="ghost"
+    onClick={() => setSelectedTask(t)}
+  >
+    View Donors
+  </Btn>
+
+  <Btn
+    size="sm"
+    variant="ghost"
+    onClick={() => {
+      setSelectedTask(t);
+      setShowUpdate(true);
+    }}
+  >
+    Send Update
+  </Btn>
+
+  {t.stage < 4 && (
+    <Btn
+      size="sm"
+      variant="secondary"
+      onClick={() => {
+        setSelectedTask(t);
+        setShowEscalation(true);
+      }}
+    >
+      Manual Escalate
+    </Btn>
+  )}
+
+</div>
           </Card>
         ))}
+        {
+selectedTask && (
+<Card style={{ marginTop: "20px" }}>
+  <h3>Matched Donors</h3>
+
+  <Table
+    headers={[
+      "Name",
+      "Blood",
+      "Distance",
+      "Status"
+    ]}
+    rows={[
+      [
+        "Ramesh Yadav",
+        selectedTask.blood,
+        "3.2 km",
+        <Badge color="success">Available</Badge>
+      ],
+      [
+        "Sunita Patel",
+        selectedTask.blood,
+        "5.8 km",
+        <Badge color="warning">Pending</Badge>
+      ],
+      [
+        "Krishnamurti",
+        selectedTask.blood,
+        "8.1 km",
+        <Badge color="success">Available</Badge>
+      ]
+    ]}
+  />
+
+  <Btn
+    size="sm"
+    variant="ghost"
+    onClick={() => setSelectedTask(null)}
+  >
+    Close
+  </Btn>
+</Card>
+)}
+{
+showUpdate && selectedTask && (
+<Card style={{ marginTop: "20px" }}>
+  <h3>Patient Update</h3>
+
+  <p>
+    Patient: {selectedTask.patient}
+  </p>
+
+  <p>
+    Blood Group: {selectedTask.blood}
+  </p>
+
+  <p>
+    Current Stage: {selectedTask.stage}
+  </p>
+
+  <div style={{ display: "flex", gap: "10px" }}>
+
+    <Btn
+      variant="teal"
+      onClick={() =>
+        alert(
+          "WhatsApp update sent successfully"
+        )
+      }
+    >
+      WhatsApp
+    </Btn>
+
+    <Btn
+      variant="primary"
+      onClick={() =>
+        alert(
+          "SMS update sent successfully"
+        )
+      }
+    >
+      SMS
+    </Btn>
+
+    <Btn
+      variant="navy"
+      onClick={() =>
+        alert(
+          "Voice update initiated"
+        )
+      }
+    >
+      Voice Call
+    </Btn>
+
+  </div>
+
+  <br />
+
+  <Btn
+    variant="ghost"
+    onClick={() => setShowUpdate(false)}
+  >
+    Close
+  </Btn>
+</Card>
+)}
+{
+showEscalation && selectedTask && (
+<Card style={{ marginTop: "20px" }}>
+  <h3>Emergency Escalation</h3>
+
+  <p>
+    Patient: {selectedTask.patient}
+  </p>
+
+  <p>
+    Urgency: {selectedTask.urgency}
+  </p>
+
+  <div style={{ display: "flex", gap: "10px" }}>
+
+    <Btn
+      variant="primary"
+      onClick={() =>
+        alert(
+          "Escalated to Swarm Network"
+        )
+      }
+    >
+      Swarm Network
+    </Btn>
+
+    <Btn
+      variant="danger"
+      onClick={() =>
+        alert(
+          "Escalated to Blood Bank Hub"
+        )
+      }
+    >
+      Blood Bank Hub
+    </Btn>
+
+    <Btn
+      variant="navy"
+      onClick={() =>
+        alert(
+          "State Emergency Network Activated"
+        )
+      }
+    >
+      Emergency Network
+    </Btn>
+
+  </div>
+
+  <br />
+
+  <Btn
+    variant="ghost"
+    onClick={() => setShowEscalation(false)}
+  >
+    Close
+  </Btn>
+</Card>
+)}
       </div>
     </div>
   );
@@ -552,6 +1010,13 @@ function BloodBankPage() {
 }
 
 function SwarmPage() {
+  const [selectedLevel, setSelectedLevel] = useState(2);
+
+const [stats, setStats] = useState({
+  contacted: 34,
+  responded: 12,
+  confirmed: 3
+});
   const [activeLevel, setActiveLevel] = useState(2);
   const levels = [
     { level: 1, label: "Nearby Donors", count: 48, radius: "0–5km", icon: "♦", color: COLORS.teal },
@@ -561,6 +1026,51 @@ function SwarmPage() {
     { level: 5, label: "State Emergency Network", count: 5, radius: "State-wide", icon: "⬡", color: COLORS.navy },
   ];
   const active = levels.find(l => l.level === activeLevel);
+  useEffect(() => {
+  generateStats(activeLevel);
+}, []);
+  const generateStats = (level) => {
+
+  let contacted;
+  let responded;
+  let confirmed;
+
+  switch(level) {
+
+    case 1:
+      contacted = Math.floor(Math.random() * 40) + 20;
+      break;
+
+    case 2:
+      contacted = Math.floor(Math.random() * 120) + 50;
+      break;
+
+    case 3:
+      contacted = Math.floor(Math.random() * 250) + 100;
+      break;
+
+    case 4:
+      contacted = Math.floor(Math.random() * 400) + 200;
+      break;
+
+    default:
+      contacted = Math.floor(Math.random() * 600) + 300;
+  }
+
+  responded = Math.floor(contacted * (0.2 + Math.random() * 0.3));
+
+  confirmed = Math.floor(
+    responded * (0.2 + Math.random() * 0.4)
+  );
+
+  setStats({
+    contacted,
+    responded,
+    confirmed
+  });
+
+  setSelectedLevel(level);
+};
   return (
     <div>
       <SectionHeader title="Swarm Intelligence Network" subtitle="5-tier auto-escalating emergency response system" action={<Badge color="danger">1 Active Swarm</Badge>} />
@@ -568,7 +1078,10 @@ function SwarmPage() {
         <div style={{ textAlign: "center", marginBottom: "1.5rem" }}><Badge color="danger">EMERGENCY ACTIVE: O- · AIIMS Hyderabad</Badge></div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           {levels.map(l => (
-            <div key={l.level} onClick={() => setActiveLevel(l.level)} style={{ width: `${40 + l.level * 12}%`, padding: "12px 24px", background: activeLevel === l.level ? l.color : l.color + "15", border: `2px solid ${l.color}40`, borderRadius: 12, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div key={l.level} onClick={() => {
+  setActiveLevel(l.level);
+  generateStats(l.level);
+}} style={{ width: `${40 + l.level * 12}%`, padding: "12px 24px", background: activeLevel === l.level ? l.color : l.color + "15", border: `2px solid ${l.color}40`, borderRadius: 12, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 18, color: activeLevel === l.level ? "#fff" : l.color }}>{l.icon}</span>
                 <div>
@@ -588,7 +1101,11 @@ function SwarmPage() {
         <Card style={{ borderLeft: `4px solid ${active.color}` }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: COLORS.navy, marginBottom: "1rem" }}>Level {active.level}: {active.label} — {active.count} resources available</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-            {[["Contacted", "34"], ["Responded", "12"], ["Confirmed", "3"]].map(([l, v]) => (
+            {[
+  ["Contacted", stats.contacted],
+  ["Responded", stats.responded],
+  ["Confirmed", stats.confirmed]
+].map(([l, v]) => (
               <div key={l} style={{ background: COLORS.bg, borderRadius: 10, padding: "1rem", textAlign: "center" }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color: active.color }}>{v}</div>
                 <div style={{ fontSize: 12, color: COLORS.slate }}>{l}</div>
@@ -596,8 +1113,39 @@ function SwarmPage() {
             ))}
           </div>
           <div style={{ marginTop: "1rem", display: "flex", gap: 8 }}>
-            <Btn size="sm" variant="primary">Escalate to Level {Math.min(active.level + 1, 5)}</Btn>
-            <Btn size="sm" variant="ghost">Send Bulk Message</Btn>
+            <Btn
+  size="sm"
+  variant="primary"
+  onClick={() => {
+
+    const nextLevel =
+      Math.min(active.level + 1, 5);
+
+    setActiveLevel(nextLevel);
+
+    generateStats(nextLevel);
+
+    alert(
+      `Emergency escalated to Level ${nextLevel}`
+    );
+
+  }}
+>
+  Escalate to Level {Math.min(active.level + 1, 5)}
+</Btn>
+            <Btn
+  size="sm"
+  variant="ghost"
+  onClick={() => {
+
+    alert(
+      `${stats.contacted} emergency notifications sent successfully`
+    );
+
+  }}
+>
+  Send Bulk Message
+</Btn>
           </div>
         </Card>
       )}
@@ -790,13 +1338,96 @@ function EngagementPage() {
 }
 
 function VoicePage() {
-  const [active, setActive] = useState(false);
-  const [transcript] = useState([
-    { role: "ai", text: "నమస్కారం! నేను RaktaSetu AI. మీకు రక్తదానం లేదా అవసరం గురించి సహాయం చేయగలను.", lang: "Telugu" },
-    { role: "user", text: "నాకు O- రక్తం అవసరం, AIIMS హైదరాబాద్ లో." },
-    { role: "ai", text: "అర్థమైంది. మీ అవసరం నమోదు చేయబడింది. 5km వ్యాసార్థంలో 3 మంది eligible donors ఉన్నారు. వారికి ఇప్పుడు contact చేస్తున్నాను.", lang: "Telugu" },
+const [selectedLanguage, setSelectedLanguage] = useState("English");
+const [userInput, setUserInput] = useState("");
+
+const languages = [
+  "English",
+  "Telugu",
+  "Hindi",
+  "Tamil",
+  "Kannada"
+];
+
+const [chat, setChat] = useState([
+  {
+    role: "ai",
+    text:
+      "Hello! I am AI Predictive Blood Crisis Prevention Assistant. How can I help you today?"
+  }
+]);
+
+const [active, setActive] = useState(false);
+const speak = (text) => {
+
+  const utterance =
+    new SpeechSynthesisUtterance(text);
+
+  if (selectedLanguage === "Telugu") {
+    utterance.lang = "te-IN";
+  }
+  else if (selectedLanguage === "Hindi") {
+    utterance.lang = "hi-IN";
+  }
+  else if (selectedLanguage === "Tamil") {
+    utterance.lang = "ta-IN";
+  }
+  else if (selectedLanguage === "Kannada") {
+    utterance.lang = "kn-IN";
+  }
+  else {
+    utterance.lang = "en-US";
+  }
+
+  speechSynthesis.speak(utterance);
+};
+
+const handleSend = async () => {
+
+  if (!userInput.trim()) return;
+
+  const message = userInput;
+
+  setChat(prev => [
+    ...prev,
+    {
+      role: "user",
+      text: message
+    }
   ]);
-  const languages = ["Telugu", "Hindi", "Tamil", "Kannada", "Marathi", "Bengali", "English"];
+
+  setUserInput("");
+
+  try {
+
+    const aiResponse =
+      await askAI(
+        message,
+        selectedLanguage
+      );
+
+    setChat(prev => [
+      ...prev,
+      {
+        role: "ai",
+        text: aiResponse
+      }
+    ]);
+
+    speak(aiResponse);
+
+  } catch (error) {
+
+    setChat(prev => [
+      ...prev,
+      {
+        role: "ai",
+        text:
+          "Unable to connect to AI service."
+      }
+    ]);
+  }
+};
   return (
     <div>
       <SectionHeader title="Multilingual Voice AI" subtitle="Conversational blood care assistant with persistent memory across all languages" />
@@ -805,30 +1436,111 @@ function VoicePage() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1rem", paddingBottom: "1rem", borderBottom: `1px solid ${COLORS.border}` }}>
             <div style={{ width: 40, height: 40, borderRadius: "50%", background: COLORS.crimsonBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>◐</div>
             <div>
-              <div style={{ fontWeight: 700, color: COLORS.navy }}>RaktaSetu Voice AI</div>
+              <div style={{ fontWeight: 700, color: COLORS.navy }}>AI Predictive Blood</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.teal }}><PulsingDot color={COLORS.teal} size={8} /> Online</div>
             </div>
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", marginBottom: "1rem", maxHeight: 300 }}>
-            {transcript.map((m, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-                <div style={{ maxWidth: "80%", padding: "10px 14px", borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", background: m.role === "user" ? COLORS.crimson : COLORS.bg, color: m.role === "user" ? "#fff" : COLORS.navyMid, fontSize: 13, lineHeight: 1.5 }}>
-                  {m.lang && <div style={{ fontSize: 10, marginBottom: 3, opacity: 0.6 }}>{m.lang}</div>}
-                  {m.text}
-                </div>
-              </div>
-            ))}
+            {chat.map((msg, index) => (
+  <div
+    key={index}
+    style={{
+      display: "flex",
+      justifyContent:
+        msg.role === "user"
+          ? "flex-end"
+          : "flex-start"
+    }}
+  >
+    <div
+      style={{
+        maxWidth: "80%",
+        padding: "10px 14px",
+        borderRadius:
+          msg.role === "user"
+            ? "16px 16px 4px 16px"
+            : "16px 16px 16px 4px",
+        background:
+          msg.role === "user"
+            ? COLORS.crimson
+            : COLORS.bg,
+        color:
+          msg.role === "user"
+            ? "#fff"
+            : COLORS.navyMid,
+        fontSize: 13
+      }}
+    >
+      {msg.text}
+    </div>
+  </div>
+))}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${COLORS.border}`, fontSize: 13, color: COLORS.slate }}>Type or speak your query...</div>
-            <button onClick={() => setActive(!active)} style={{ width: 44, height: 44, borderRadius: "50%", background: active ? COLORS.danger : COLORS.crimson, border: "none", cursor: "pointer", color: "#fff", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: active ? `0 0 0 8px ${COLORS.danger}30` : "none", transition: "all 0.2s" }}>
-              {active ? "■" : "🎤"}
-            </button>
-          </div>
+
+  <input
+    type="text"
+    value={userInput}
+    onChange={(e) =>
+      setUserInput(e.target.value)
+    }
+    placeholder={`Ask in ${selectedLanguage}`}
+    style={{
+      flex: 1,
+      padding: "10px 14px",
+      borderRadius: 10,
+      border: `1.5px solid ${COLORS.border}`,
+      fontSize: 13
+    }}
+  />
+
+  <Btn
+    variant="primary"
+    onClick={handleSend}
+  >
+    Send
+  </Btn>
+
+  <button
+    onClick={() => setActive(!active)}
+    style={{
+      width: 44,
+      height: 44,
+      borderRadius: "50%",
+      background: active
+        ? COLORS.danger
+        : COLORS.crimson,
+      border: "none",
+      cursor: "pointer",
+      color: "#fff",
+      fontSize: 18
+    }}
+  >
+    {active ? "■" : "🎤"}
+  </button>
+
+</div>
         </Card>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <Card>
             <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.navy, marginBottom: "1rem" }}>Supported Languages</div>
+            <select
+  value={selectedLanguage}
+  onChange={(e) => setSelectedLanguage(e.target.value)}
+  style={{
+    width: "100%",
+    padding: "10px",
+    marginBottom: "15px",
+    borderRadius: "8px",
+    border: `1px solid ${COLORS.border}`
+  }}
+>
+  {languages.map(lang => (
+    <option key={lang} value={lang}>
+      {lang}
+    </option>
+  ))}
+</select>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{languages.map(l => <Badge key={l} color="navy" size="md">{l}</Badge>)}</div>
           </Card>
           <Card>
@@ -869,6 +1581,7 @@ function PlaceholderPage({ title }) {
 export default function App() {
   const [page, setPage] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const pageMap = {
     dashboard: <Dashboard setPage={setPage} />,
     patients: <PatientsPage />,
@@ -896,7 +1609,8 @@ export default function App() {
         <div style={{ padding: "1.5rem 1rem 1rem", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setSidebarOpen(!sidebarOpen)}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: COLORS.crimson, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>🩸</div>
-            {sidebarOpen && <div><div style={{ fontWeight: 800, fontSize: 14, lineHeight: 1 }}>RaktaSetu</div><div style={{ fontSize: 10, opacity: 0.5, fontWeight: 500 }}>Nexus AI</div></div>}
+            {sidebarOpen && <div><div style={{ fontWeight: 800, fontSize: 14, lineHeight: 1 }}>AI Predictive Blood Crisis Precaution System
+</div><div style={{ fontSize: 10, opacity: 0.5, fontWeight: 500 }}>Nexus AI</div></div>}
           </div>
         </div>
         <nav style={{ flex: 1, padding: "0.75rem 0", overflowY: "auto" }}>
@@ -941,3 +1655,5 @@ export default function App() {
     </div>
   );
 }
+
+
